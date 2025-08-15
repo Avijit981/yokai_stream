@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+@plugin "daisyui" {
+  themes: all
+}
+
+@theme {
+  --font-inter: "Inter Tight", sans-serif;
+  --font-noto: "Noto Sans JP", sans-serif;
+  --font-outfit: "Outfit", sans-serif;
+}
+
+body {
+  font-family: var(--font-inter);
+  /* Or apply globally */
+}
+
+.font-inter {
+  font-family: var(--font-inter);
+}
+
+.font-noto {
+  font-family: var(--font-noto);
+}
+
+.font-outfit {
+  font-family: var(--font-outfit);
+}
