@@ -2,28 +2,37 @@ import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Play, Info, Star, Calendar, Clock, Tv } from 'lucide-react';
 import MnavBar from '../components/MnavBar';
 
-// Fetch AniList Banner
+// Fetch AniList Banner with fallback
 async function getAniListBanner(title) {
-    const query = `
-        query ($search: String) {
-            Media(search: $search, type: ANIME) {
-                bannerImage
+    try {
+        const query = `
+            query ($search: String) {
+                Media(search: $search, type: ANIME) {
+                    bannerImage
+                }
             }
+        `;
+        const variables = { search: title };
+
+        const res = await fetch("https://graphql.anilist.co", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+            body: JSON.stringify({ query, variables }),
+        });
+
+        if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
         }
-    `;
-    const variables = { search: title };
 
-    const res = await fetch("https://graphql.anilist.co", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-        },
-        body: JSON.stringify({ query, variables }),
-    });
-
-    const data = await res.json();
-    return data.data?.Media?.bannerImage || null;
+        const data = await res.json();
+        return data.data?.Media?.bannerImage || null;
+    } catch (error) {
+        console.warn(`Failed to fetch banner for ${title}:`, error.message);
+        return null;
+    }
 }
 
 const Carousel = () => {
@@ -31,23 +40,38 @@ const Carousel = () => {
     const [currentSlide, setCurrentSlide] = useState(0);
     const [isAutoPlaying, setIsAutoPlaying] = useState(true);
 
-    // Fetch data from Jikan + AniList banners
+    // Fetch data from Jikan + AniList banners with delay to avoid rate limiting
     useEffect(() => {
         const fetchAnime = async () => {
             try {
                 const res = await fetch('https://api.jikan.moe/v4/top/anime?limit=5');
                 const data = await res.json();
 
-                const enriched = await Promise.all(
-                    data.data.map(async (anime) => {
-                        const banner = await getAniListBanner(anime.title);
-                        return { ...anime, bannerImage: banner };
-                    })
-                );
+                // Process anime one by one with delay to avoid rate limiting
+                const enriched = [];
+                for (let i = 0; i < data.data.length; i++) {
+                    const anime = data.data[i];
+                    
+                    // Add delay between requests to avoid rate limiting
+                    if (i > 0) {
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
+                    
+                    const banner = await getAniListBanner(anime.title);
+                    enriched.push({ ...anime, bannerImage: banner });
+                }
 
                 setAnimeData(enriched);
             } catch (err) {
                 console.error("Error fetching anime:", err);
+                // Fallback: use Jikan data without banners
+                try {
+                    const res = await fetch('https://api.jikan.moe/v4/top/anime?limit=5');
+                    const data = await res.json();
+                    setAnimeData(data.data.map(anime => ({ ...anime, bannerImage: null })));
+                } catch (fallbackErr) {
+                    console.error("Fallback fetch also failed:", fallbackErr);
+                }
             }
         };
         fetchAnime();
@@ -85,22 +109,41 @@ const Carousel = () => {
 
     return (
         <div className="relative w-full h-screen overflow-hidden bg-gray-900">
-            {/* Background with gradient overlay */}
+            {/* Background with gradient overlay - Banner or Poster fallback */}
             <div className="absolute inset-0 transition-all duration-1000 ease-in-out">
-                <div className="absolute inset-0 bg-black bg-opacity-40"></div>
+                <div className="absolute inset-0 "></div>
                 <div className="absolute inset-0 bg-gradient-to-r from-black via-transparent to-transparent"></div>
-                <img
-                    src={currentAnime.bannerImage || currentAnime.images.jpg.large_image_url}
-                    alt={currentAnime.title}
-                    className="w-full h-full object-cover"
-                />
+                {currentAnime.bannerImage ? (
+                    <img
+                        src={currentAnime.bannerImage}
+                        alt={currentAnime.title}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                            // If banner fails to load, try the poster image
+                            e.target.src = currentAnime.images.jpg.large_image_url;
+                        }}
+                    />
+                ) : currentAnime.images?.jpg?.large_image_url ? (
+                    <img
+                        src={currentAnime.images.jpg.large_image_url}
+                        alt={currentAnime.title}
+                        className="w-full h-full object-cover"
+                    />
+                ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-purple-900 via-gray-800 to-black flex items-center justify-center">
+                        <div className="text-center text-gray-400">
+                            <Tv className="w-24 h-24 mx-auto mb-4" />
+                            <p className="text-xl">No image available</p>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Main Content */}
             <div className="relative z-10 flex items-center h-full">
-                <div className="container mx-auto px-8 flex flex-col md:flex-row items-center">
-                    {/* Left Content */}
-                    <div className="md:w-1/2 text-white">
+                <div className="container mx-auto px-8">
+                    {/* Centered Content */}
+                    <div className="text-white max-w-4xl">
                         <span className="inline-block px-3 py-1 bg-purple-600 text-purple-100 text-sm font-medium rounded-full mb-4">
                             #{currentSlide + 1} Spotlight
                         </span>
@@ -127,8 +170,8 @@ const Carousel = () => {
                         </div>
 
                         {/* Description */}
-                        <p className="text-lg text-gray-200 mb-8 leading-relaxed max-w-2xl">
-                            {currentAnime.synopsis?.slice(0, 250) + '...'}
+                        <p className="text-lg text-gray-200 mb-8 leading-relaxed max-w-3xl">
+                            {currentAnime.synopsis?.slice(0, 350) + '...'}
                         </p>
 
                         {/* Action Buttons */}
@@ -143,24 +186,15 @@ const Carousel = () => {
                             </button>
                         </div>
                     </div>
-
-                    {/* Right Content - Poster */}
-                    <div className="md:w-1/2 flex justify-center items-center mt-10 md:mt-0">
-                        <img
-                            src={currentAnime.images.jpg.large_image_url}
-                            alt={currentAnime.title}
-                            className="max-h-[90vh] object-contain drop-shadow-[0_10px_15px_rgba(0,0,0,0.5)]"
-                        />
-                    </div>
                 </div>
             </div>
 
             {/* Navigation Arrows */}
             <div className="absolute bottom-8 right-8 z-20 flex space-x-3">
-                <button onClick={prevSlide} className="bg-black bg-opacity-50 text-white p-3 rounded-full">
+                <button onClick={prevSlide} className="bg-black bg-opacity-50 text-white p-3 rounded-lg hover:bg-opacity-70 transition-all">
                     <ChevronLeft className="w-6 h-6" />
                 </button>
-                <button onClick={nextSlide} className="bg-black bg-opacity-50 text-white p-3 rounded-full">
+                <button onClick={nextSlide} className="bg-black bg-opacity-50 text-white p-3 rounded-lg hover:bg-opacity-70 transition-all">
                     <ChevronRight className="w-6 h-6" />
                 </button>
             </div>
@@ -171,7 +205,7 @@ const Carousel = () => {
                     <button
                         key={index}
                         onClick={() => goToSlide(index)}
-                        className={`w-3 h-3 rounded-full ${currentSlide === index ? 'bg-purple-500 scale-125' : 'bg-white bg-opacity-40'}`}
+                        className={`w-3 h-3 rounded-full transition-all ${currentSlide === index ? 'bg-purple-500 scale-125' : 'bg-white bg-opacity-40 hover:bg-opacity-60'}`}
                     />
                 ))}
             </div>

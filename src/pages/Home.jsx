@@ -17,6 +17,8 @@ const Home = () => {
       rating: "HD",
       tags: ["3", "3"],
       description: "Living in the slums of a wealthy town, Rudo and his foster father Regto try to coexist with the rest of the town's residents, but Rudo despises the wastefulness of the upper class. Ignoring the warnings from those around him, Rudo regularly rummages through the town's garbage in search of anything...",
+      background: "https://cdn.noitatnemucod.net/thumbnail/1366x768/100/7090ec9557d74a18d25341a241ece786.jpg",
+      image: "https://cdn.noitatnemucod.net/thumbnail/1366x768/100/7090ec9557d74a18d25341a241ece786.jpg"
     },
     {
       id: 2,
@@ -28,6 +30,8 @@ const Home = () => {
       rating: "HD",
       tags: ["4.8", "5"],
       description: "Tanjiro Kamado, joined with Inosuke Hashibira, a boy raised by boars who wears a boar's head, and Zenitsu Agatsuma, a scared boy who reveals his true power when he sleeps, boards the Infinity Train on a new mission...",
+      background: "linear-gradient(135deg, #2d1b69 0%, #11998e 50%, #38ef7d 100%)",
+      image: "/api/placeholder/800/400"
     },
     {
       id: 3,
@@ -39,7 +43,8 @@ const Home = () => {
       rating: "HD",
       tags: ["4.9", "5"],
       description: "When man-eating Titans first appeared 100 years ago, humans found safety behind massive walls that stopped the giants in their tracks. But the safety they have had for so long is threatened when a colossal Titan smashes through the barriers...",
-
+      background: "linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)",
+      image: "/api/placeholder/800/400"
     },
     {
       id: 4,
@@ -51,7 +56,8 @@ const Home = () => {
       rating: "HD",
       tags: ["4.7", "4"],
       description: "Yuji Itadori is a boy with tremendous physical strength, though he lives a completely ordinary high school life. One day, to save a classmate who has been attacked by curses, he eats the finger of Ryomen Sukuna, taking the curse into his own soul...",
-
+      background: "linear-gradient(135deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%)",
+      image: "/api/placeholder/800/400"
     }
   ];
 
@@ -85,12 +91,19 @@ const Home = () => {
   return (
     <div className="relative w-full h-screen overflow-hidden bg-gray-900">
       {/* Background with gradient overlay */}
-      <div 
-        className="absolute inset-0 transition-all duration-1000 ease-in-out"
-      >
-        <div className="absolute inset-0 bg-black bg-opacity-40"></div>
-        <div className="absolute inset-0 bg-gradient-to-r from-black via-transparent to-transparent"></div>
-        <img src="https://cdn.noitatnemucod.net/thumbnail/1366x768/100/7090ec9557d74a18d25341a241ece786.jpg" alt="" />
+      <div className="absolute inset-0 transition-all duration-1000 ease-in-out">
+        {currentAnime.background.startsWith('http') ? (
+          <>
+            <div 
+              className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+              style={{ backgroundImage: `url(${currentAnime.background})` }}
+            />
+            <div className="absolute inset-0 bg-black bg-opacity-60"></div>
+          </>
+        ) : (
+          <div style={{ background: currentAnime.background }}></div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent"></div>
       </div>
 
       {/* Main Content */}
@@ -221,7 +234,7 @@ const Home = () => {
         />
       </div> */}
       
-        <MnavBar />
+       <MnavBar/> 
     </div>
   );
 };
